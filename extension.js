@@ -24,31 +24,52 @@ const { GObject, St } = imports.gi;
 
 const Gettext = imports.gettext.domain(GETTEXT_DOMAIN);
 const _ = Gettext.gettext;
-
+const Lang = imports.lang;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
+const Tweener = imports.tweener.tweener;
+const Atk = imports.gi.Atk;
 
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
     _init() {
+        this.name = "example";
         super._init(0.0, _('My Shiny Indicator'));
+        this.actor.accessible_role = Atk.Role.TOGGLE_BUTTON;
 
-        let box = new St.BoxLayout({ style_class: 'panel-status-menu-box' });
-        box.add_child(new St.Icon({
-            icon_name: 'face-smile-symbolic',
-            style_class: 'system-status-icon',
-        }));
-        box.add_child(PopupMenu.arrowIcon(St.Side.BOTTOM));
-        this.add_child(box);
+        this._text = null;
+        this._icon = new St.Icon({ icon_name: 'system-run-symbolic',
+                                 style_class: 'system-status-icon' });
 
-        let item = new PopupMenu.PopupMenuItem(_('Show Notification'));
-        item.connect('activate', () => {
-            Main.notify(_('Whatʼs up, folks?'));
-        });
-        this.menu.addMenuItem(item);
+        this.actor.add_child(this._icon);
+        this.actor.connect('button-press-event', Lang.bind(this, this._showHello));
     }
+
+    _hideHello () {
+      Main.uiGroup.remove_actor(this._text);
+      this._text = null;
+    }
+
+    _showHello () {
+      if (!this._text) {
+        this._text = new St.Label({ style_class: 'helloworld-label', text: "Hello, world!" });
+        Main.uiGroup.add_actor(this._text);
+      }
+      this._text.opacity = 255;
+
+      let monitor = Main.layoutManager.primaryMonitor;
+
+      this._text.set_position(monitor.x + Math.floor(monitor.width / 2 - this._text.width / 2),
+                      monitor.y + Math.floor(monitor.height / 2 - this._text.height / 2));
+
+      Tweener.addTween(this._text,
+                     { opacity: 0,
+                       time: 2,
+                       transition: 'easeOutQuad',
+                       onComplete: this._hideHello });
+      }
 });
 
 class Extension {
